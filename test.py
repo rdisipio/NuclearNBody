@@ -62,7 +62,7 @@ def prepare(n):
 
 if __name__ == "__main__":
 
-    n = 2
+    n = 3
     r = 2
 
     a_dagger, ψ = prepare(n)

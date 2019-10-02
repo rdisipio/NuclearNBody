@@ -146,7 +146,9 @@ if __name__ == '__main__':
     sampler = neal.SimulatedAnnealingSampler()
 
     results = sampler.sample( bqm, num_reads=num_reads).aggregate()
-
+    print("Results:")
+    print(results)
+    
     best_fit = results.first
     gs = ground_state(best_fit)
 
