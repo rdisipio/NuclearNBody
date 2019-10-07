@@ -205,12 +205,6 @@ if __name__ == '__main__':
             if v not in initial_state:
                 s0[v] = random.choice((0, 1))
 
-        #s0 = {v: 0 for v in set().union(*Q)}  # for the original problem
-        #for v in bqm:
-        #    if v not in initial_state:
-        #        s0[v] = random.choice((0, 1))
-        #print("is=", initial_state, "s0=",s0)
-
         for itrial in range(max_evals):
 
             reverse_anneal_params = dict(anneal_schedule=schedule,
