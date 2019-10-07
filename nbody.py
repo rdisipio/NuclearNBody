@@ -2,13 +2,17 @@
 
 import numpy as np
 from decimal import Decimal
+from collections import Counter
 
 import dimod
 import dwave_networkx as dnx
 import neal
 
-from dwave.system import EmbeddingComposite, FixedEmbeddingComposite, TilingComposite, DWaveSampler
+from dwave.system import EmbeddingComposite, FixedEmbeddingComposite, AutoEmbeddingComposite, DWaveSampler
 from dwave_tools import get_embedding_with_short_chain, get_energy, anneal_sched_custom, qubo_quadratic_terms_from_np_array
+
+# see Reverse Annealing:
+# https://docs.dwavesys.com/docs/latest/c_fd_ra.html
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -75,6 +79,12 @@ def make_hamiltonian( n_sp, quantum_numbers, nninteraction ):
     #}
 
     H = {**T, **V}
+
+    H = { 
+        ('0','0'):-13.6, ('1','1'):-3.4, ('2','2'):-1.5,
+        ('1','0'):10.2, ('2','0'):12.1, ('2','1'):1.9, 
+        ('0','1','1','2'):5.0,
+    }
     
     print("INFO: Hamiltonian:")
     print(H)
@@ -83,10 +93,10 @@ def make_hamiltonian( n_sp, quantum_numbers, nninteraction ):
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-def ground_state(x):
-    q = np.array( [ str(x) for x in list( x.sample.values() ) ] )
-    s = "".join(q)
-    s = "|ψ> = %s|0>" % s
+def dirac(x):
+    sx = [ str(a) for a in x ]
+    s = "".join(sx)
+    s = "|%s>" % s
     return s
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -95,7 +105,8 @@ if __name__ == '__main__':
 
     # number of single particles (nucleons)
     n_sp = 3
-    num_reads = 1000
+    num_reads = 300
+    max_evals = 10
 
     # see:
     # https://github.com/ManyBodyPhysics/LectureNotesPhysics/blob/master/Programs/Chapter8-programs/python/hfnuclei.py
@@ -140,19 +151,67 @@ if __name__ == '__main__':
 
     # see: https://docs.ocean.dwavesys.com/projects/dimod/en/latest/reference/generated/dimod.higherorder.utils.make_quadratic.html#dimod.higherorder.utils.make_quadratic
     bqm = dimod.make_quadratic(Q, strength, dimod.BINARY)
-
+    print("INFO: simplified binary quadratic model:")
     print(bqm)
 
-    sampler = neal.SimulatedAnnealingSampler()
-
-    results = sampler.sample( bqm, num_reads=num_reads).aggregate()
-    print("Results:")
-    print(results)
+    schedule = [(0.0, 1.0), (2.0, 0.7), (98.0, 0.7), (100.0, 1.0)]
+    print("INFO: reverse annealing schedule:")
+    print(schedule)
     
-    best_fit = results.first
-    gs = ground_state(best_fit)
+    neal_sampler = neal.SimulatedAnnealingSampler()
+    hardware_sampler = DWaveSampler()
 
-    print("INFO: ground state:")
-    print(gs)
+    embedding = get_embedding_with_short_chain( bqm.quadratic,
+                                           tries=5,
+                                           processor=hardware_sampler.edgelist,
+                                           verbose=False)
+    print("INFO: embedding:")
+    print(embedding)
 
+    qpu_sampler = FixedEmbeddingComposite(hardware_sampler, embedding)
+
+
+    initial_states = [
+        [ (0,1), (1,0), (2,0) ],
+        [ (0,0), (1,1), (2,0) ],
+        [ (0,0), (1,0), (2,1) ]
+    ]
+    
+
+    for initial_state in initial_states:
+        counter = Counter()
+
+        for itrial in range(max_evals):
+
+            reverse_anneal_params = dict(anneal_schedule=schedule,
+                                 initial_state=initial_state,
+                                 reinitialize_state=True)
+
+            solver_parameters = {
+                'num_reads': num_reads,
+                'auto_scale': True,
+                **reverse_anneal_params,
+            }
+
+            #results = neal_sampler.sample(bqm, **solver_parameters).aggregate()
+            results = qpu_sampler.sample(bqm, **solver_parameters).aggregate()
+            #this_energy = this_result.energy
+            #this_q = np.array(list(this_result.sample.values()))
+
+            #print("Results:")
+            #print(results)
+
+            best_fit = list( results.first.sample.values() )
+            gs = dirac(best_fit)
+
+            counter[gs] += 1
+
+            #print("INFO: ground state (%i/%i):" % (itrial, max_evals) )
+            #print(gs)
+
+        s0 = dirac( [a[1] for a in initial_state ] )
+        print("INFO: counters for initial state", s0)
+        for state, c in counter.items():
+            print( state, ":", c)
+        print("-------")
     
