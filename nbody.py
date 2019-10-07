@@ -86,9 +86,6 @@ def make_hamiltonian( n_sp, quantum_numbers, nninteraction ):
         ('0','0'):-13.6, ('1','1'):-3.4, ('2','2'):-1.5,
         ('1','0'):10.2, ('2','0'):12.1, ('2','1'):1.9, 
         ('0','1','1','2'):5.0,
-
-        #(0,0):-13.6, (1,1):-3.4, (2,2):-1.5,
-        #(1,0):10.2, (2,0):12.1, (2,1):1.9, 
     }
     
     print("INFO: Hamiltonian:")
@@ -231,8 +228,6 @@ if __name__ == '__main__':
 
             # remove elements corresponding to ancilla qbits
             best_fit_x = [ best_fit[j] for j in qubit_indices ]
-            #for k in range( len(list(embedding.keys()))):
-            #    if "*" in embedding.keys()[k]: del best_fit_x[k]
             gs = dirac(best_fit_x)
 
             counter[gs] += 1
