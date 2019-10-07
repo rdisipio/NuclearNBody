@@ -11,6 +11,7 @@ import minorminer
 import neal
 
 from dwave.system import EmbeddingComposite, FixedEmbeddingComposite, AutoEmbeddingComposite, DWaveSampler
+from dimod.reference.composites import HigherOrderComposite
 from dwave_tools import get_embedding_with_short_chain, get_energy, anneal_sched_custom, qubo_quadratic_terms_from_np_array
 
 # see Reverse Annealing:
@@ -107,7 +108,7 @@ if __name__ == '__main__':
 
     # number of single particles (nucleons)
     n_sp = 3
-    num_reads = 100
+    num_reads = 20
     max_evals = 2
 
     # see:
@@ -164,7 +165,9 @@ if __name__ == '__main__':
     hardware_sampler = DWaveSampler()
     source = bqm.quadratic
     embedding = minorminer.find_embedding(source, hardware_sampler.edgelist)
-    qpu_sampler = FixedEmbeddingComposite(hardware_sampler, embedding)
+    #qpu_sampler = FixedEmbeddingComposite(hardware_sampler, embedding)
+    qpu_sampler = dimod.HigherOrderComposite(EmbeddingComposite(DWaveSampler()))
+
 
     #processor = dnx.chimera_graph(16, 16, 4).edges()
     #embedding = minorminer.find_embedding(source, processor)
@@ -194,10 +197,19 @@ if __name__ == '__main__':
     for initial_state in initial_states:
         counter = Counter()
 
-        s0 = {v: 0 for v in set().union(*Q)}  # for the original problem
+        s0 = {}
+        for a in initial_state:
+            k, v = str(a[0]), a[1]
+            s0[k] = v
         for v in bqm:
             if v not in initial_state:
                 s0[v] = random.choice((0, 1))
+
+        #s0 = {v: 0 for v in set().union(*Q)}  # for the original problem
+        #for v in bqm:
+        #    if v not in initial_state:
+        #        s0[v] = random.choice((0, 1))
+        #print("is=", initial_state, "s0=",s0)
 
         for itrial in range(max_evals):
 
@@ -215,7 +227,7 @@ if __name__ == '__main__':
             results = neal_sampler.sample(bqm, **solver_parameters).aggregate()
 
             # QPU:
-            #results = qpu_sampler.sample(bqm, **solver_parameters).aggregate()
+            #results = qpu_sampler.sample_hubo(Q, **solver_parameters )
             
             #this_energy = this_result.energy
             #this_q = np.array(list(this_result.sample.values()))
@@ -225,10 +237,12 @@ if __name__ == '__main__':
 
             # this also contains the state of ancilla qubits
             best_fit = list( results.first.sample.values() )
+            #print("DEBUG: best-fit:", best_fit)
+            gs = dirac(best_fit)
 
-            # remove elements corresponding to ancilla qbits
-            best_fit_x = [ best_fit[j] for j in qubit_indices ]
-            gs = dirac(best_fit_x)
+            # CPU/neal: remove elements corresponding to ancilla qbits
+            #best_fit_x = [ best_fit[j] for j in qubit_indices ]
+            #gs = dirac(best_fit_x)
 
             counter[gs] += 1
 
