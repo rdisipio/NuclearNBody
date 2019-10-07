@@ -193,13 +193,11 @@ if __name__ == '__main__':
                 **reverse_anneal_params,
             }
 
-            #results = neal_sampler.sample(bqm, **solver_parameters).aggregate()
-            results = qpu_sampler.sample(bqm, **solver_parameters).aggregate()
-            #this_energy = this_result.energy
-            #this_q = np.array(list(this_result.sample.values()))
+            # CPU:
+            results = neal_sampler.sample(bqm, **solver_parameters).aggregate()
 
-            #print("Results:")
-            #print(results)
+            # QPU:
+            #results = qpu_sampler.sample(bqm, **solver_parameters).aggregate()
 
             best_fit = list( results.first.sample.values() )
             gs = dirac(best_fit)
