@@ -167,7 +167,7 @@ if __name__ == '__main__':
     for k, v in C.items():
         print(k, ":", v)
 
-    λ = 1.
+    λ = 10.
     for idx, v in C.items():
         #print("DEBUG: c= ", idx, v)
         if idx in Q:
