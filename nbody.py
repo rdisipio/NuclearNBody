@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import random
+import itertools
 import numpy as np
 from decimal import Decimal
 from collections import Counter
@@ -17,6 +18,7 @@ from dwave_tools import get_embedding_with_short_chain, get_energy, anneal_sched
 # see Reverse Annealing:
 # https://docs.dwavesys.com/docs/latest/c_fd_ra.html
 
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 def onebody(i, n, l):
@@ -29,7 +31,7 @@ def onebody(i, n, l):
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-def make_hamiltonian( n_sp, quantum_numbers, nninteraction ):
+def make_hamiltonian( n_so, quantum_numbers, nninteraction ):
     '''Creates the Hamiltonian'''
 
     N = quantum_numbers['n']
@@ -41,12 +43,12 @@ def make_hamiltonian( n_sp, quantum_numbers, nninteraction ):
     # one-body hamiltonian
     # kinetic energy and external field
     # T = sum_ij T_ij a_i^† a_j
-    #T = np.zeros( [n_sp,n_sp] )
+    #T = np.zeros( [n_so,n_so] )
     #T = { (0,1):1, (1,3):-1, (2,4):2, (2,3):-1.5 }
     T = {}
     # no self-loops allowed ???
-    for i in range(n_sp):
-        idx = (i,i)
+    for i in range(n_so):
+        idx = ( str(i),str(i) )
         T[idx] = onebody( i, N, L )
         print( idx, T[idx])
 
@@ -54,22 +56,22 @@ def make_hamiltonian( n_sp, quantum_numbers, nninteraction ):
     # conservation laws/selection rules 
     # strongly restrict the elements
     # V = sum_ijkl V_ijkl a_i^† a_j^† a_k a_l
-    #V = np.zeros( [n_sp,n_sp,n_sp,n_sp] )
+    #V = np.zeros( [n_so,n_so,n_so,n_so] )
     #V = { (0,1,2,3):1, (0,1,0,3):1, (1,0,2,3):-2 }
 
     V = {}
-    for i in range(n_sp):
-        for j in range(n_sp):
+    for i in range(n_so):
+        for j in range(n_so):
             if L[i] != L[j] and J[i] != J[j] and MJ[i] != MJ[j] and TZ[i] != TZ[j]: continue
 
-            for k in range(n_sp):
-                for l in range(n_sp):
+            for k in range(n_so):
+                for l in range(n_so):
 
                     if (MJ[i]+MJ[k]) != (MJ[j]+MJ[l]) and (TZ[i]+TZ[k]) != (TZ[j]+TZ[l]): continue
 
                     if nninteraction[i][j][k][l] == 0.: continue
 
-                    idx = (i,j,k,l)
+                    idx = ( str(i),str(j),str(k),str(l))
                     V[idx] = nninteraction[i][j][k][l]
 
                     print(idx, ':', V[idx], ',')
@@ -83,11 +85,11 @@ def make_hamiltonian( n_sp, quantum_numbers, nninteraction ):
 
     H = {**T, **V}
 
-    H = { 
-        ('0','0'):-13.6, ('1','1'):-3.4, ('2','2'):-1.5,
-        ('1','0'):10.2, ('2','0'):12.1, ('2','1'):1.9, 
-        ('0','1','1','2'):5.0,
-    }
+    #H = { 
+    #    ('0','0'):-13.6, ('1','1'):-3.4, ('2','2'):-1.5,
+    #    ('1','0'):10.2, ('2','0'):12.1, ('2','1'):1.9, 
+    #    ('0','1','1','2'):5.0,
+    #}
     
     print("INFO: Hamiltonian:")
     print(H)
@@ -106,9 +108,9 @@ def dirac(x):
 
 if __name__ == '__main__':
 
-    # number of single particles (nucleons)
-    n_sp = 3
-    num_reads = 20
+    n_so = 5 # number of spin orbitals
+    n_p = 2  # number of particles actually present
+    num_reads = 100
     max_evals = 2
 
     # see:
@@ -145,7 +147,7 @@ if __name__ == '__main__':
 			#print a, b, c, d, float(l[4])
             nninteraction[a][b][c][d] = Decimal(number[4])
 
-    Q = make_hamiltonian( n_sp, quantum_numbers, nninteraction )
+    Q = make_hamiltonian( n_so, quantum_numbers, nninteraction )
 
     # Strength of the reduction constraint. 
     # Insufficient strength can result in the binary quadratic model
@@ -187,23 +189,24 @@ if __name__ == '__main__':
 
     #qpu_sampler = FixedEmbeddingComposite(hardware_sampler, embedding)
 
-    initial_states = [
-        [ (0,1), (1,0), (2,0) ],
-        [ (0,0), (1,1), (2,0) ],
-        [ (0,0), (1,0), (2,1) ]
-    ]
-    
+
+    initial_states = set( itertools.permutations( [1]*n_p + [0]*(n_so-n_p), n_so )  )
+    initial_states = list( zip( np.arange(len(initial_states)), initial_states) )
+    print("INFO: possible initial states with %i particles in %i spin orbitals:" % (n_p, n_so) )
+    for s in initial_states:
+        print( "%-3i ="%s[0], dirac(s[1]))
 
     for initial_state in initial_states:
         counter = Counter()
-
+        
+        #print("DEBUG: initial state:", initial_state[1])
         s0 = {}
-        for a in initial_state:
-            k, v = str(a[0]), a[1]
-            s0[k] = v
+        for j in range(n_so):
+            s0[str(j)] = initial_state[1][j]
         for v in bqm:
             if v not in initial_state:
                 s0[v] = random.choice((0, 1))
+        #print("DEBUG: s0=",s0)
 
         for itrial in range(max_evals):
 
@@ -235,16 +238,17 @@ if __name__ == '__main__':
             gs = dirac(best_fit)
 
             # CPU/neal: remove elements corresponding to ancilla qbits
-            #best_fit_x = [ best_fit[j] for j in qubit_indices ]
-            #gs = dirac(best_fit_x)
+            best_fit_x = [ best_fit[j] for j in qubit_indices ]
+            gs = dirac(best_fit_x)
 
             counter[gs] += 1
 
             #print("INFO: ground state (%i/%i):" % (itrial, max_evals) )
             #print(gs)
 
-        x0 = [ a[1] for a in initial_state ]
-        s0 = dirac( x0 )
+        #x0 = [ a[1] for a in initial_state ]
+        #s0 = dirac( x0 )
+        s0 = dirac( initial_state[1] )
         print("INFO: counters for initial state", s0)
         for state, c in counter.items():
             print( state, ":", c)
