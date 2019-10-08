@@ -10,6 +10,7 @@ import dimod
 import dwave_networkx as dnx
 import minorminer
 import neal
+import pyqubo
 
 from dwave.system import EmbeddingComposite, FixedEmbeddingComposite, AutoEmbeddingComposite, DWaveSampler
 from dimod.reference.composites import HigherOrderComposite
@@ -18,6 +19,16 @@ from dwave_tools import get_embedding_with_short_chain, get_energy, anneal_sched
 # see Reverse Annealing:
 # https://docs.dwavesys.com/docs/latest/c_fd_ra.html
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+def Constrain_NumberOfFermions( n_so, n_p ):
+    qubits = [ pyqubo.Spin(str(i)) for i in range(n_so) ]
+    H = sum(qubits)
+    H = H - n_p
+    H = H*H
+    model = H.compile()
+    qubo, offset = model.to_qubo()
+    return qubo
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -108,10 +119,10 @@ def dirac(x):
 
 if __name__ == '__main__':
 
-    n_so = 5 # number of spin orbitals
+    n_so = 3 # number of spin orbitals
     n_p = 2  # number of particles actually present
     num_reads = 100
-    max_evals = 2
+    max_evals = 100
 
     # see:
     # https://github.com/ManyBodyPhysics/LectureNotesPhysics/blob/master/Programs/Chapter8-programs/python/hfnuclei.py
@@ -148,6 +159,20 @@ if __name__ == '__main__':
             nninteraction[a][b][c][d] = Decimal(number[4])
 
     Q = make_hamiltonian( n_so, quantum_numbers, nninteraction )
+
+    # add constraint for number of fermions conservation
+    # λ( q1 + q2 + ... + qN - N )**2
+    C = Constrain_NumberOfFermions( n_so, n_p )
+    print("INFO: constraint for number of fermions conservation:")
+    print(C)
+    λ = 1.
+    for idx, v in C.items():
+        #print("DEBUG: c= ", idx, v)
+        if idx in Q:
+            #print("DEBUG: Q=", idx, Q[idx])
+            Q[idx] = Q[idx] + λ*v
+        else:
+            Q[idx] = λ*v
 
     # Strength of the reduction constraint. 
     # Insufficient strength can result in the binary quadratic model
