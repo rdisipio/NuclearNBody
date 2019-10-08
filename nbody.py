@@ -22,9 +22,9 @@ from dwave_tools import get_embedding_with_short_chain, get_energy, anneal_sched
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 def Constrain_NumberOfFermions( n_so, n_p ):
-    qubits = [ pyqubo.Spin(str(i)) for i in range(n_so) ]
-    H = sum(qubits)
-    H = H - n_p
+    # see https://buildmedia.readthedocs.org/media/pdf/pyqubo/stable/pyqubo.pdf
+    qubits = [ pyqubo.Binary(str(i)) for i in range(n_so) ]
+    H = sum(qubits) - n_p
     H = H*H
     model = H.compile()
     qubo, offset = model.to_qubo()
@@ -61,7 +61,7 @@ def make_hamiltonian( n_so, quantum_numbers, nninteraction ):
     for i in range(n_so):
         idx = ( str(i),str(i) )
         T[idx] = onebody( i, N, L )
-        print( idx, T[idx])
+        #print( idx, T[idx])
 
     # two-body hamiltonian
     # conservation laws/selection rules 
@@ -85,7 +85,7 @@ def make_hamiltonian( n_so, quantum_numbers, nninteraction ):
                     idx = ( str(i),str(j),str(k),str(l))
                     V[idx] = nninteraction[i][j][k][l]
 
-                    print(idx, ':', V[idx], ',')
+                    #print(idx, ':', V[idx], ',')
 
     # let's put something in by hand according to
     # H = sum_ij T_ij a_i^† a_j + sum_ijkl V_ijkl a_i^† a_j^† a_k a_l
@@ -101,9 +101,6 @@ def make_hamiltonian( n_so, quantum_numbers, nninteraction ):
     #    ('1','0'):10.2, ('2','0'):12.1, ('2','1'):1.9, 
     #    ('0','1','1','2'):5.0,
     #}
-    
-    print("INFO: Hamiltonian:")
-    print(H)
 
     return H
 
@@ -159,12 +156,17 @@ if __name__ == '__main__':
             nninteraction[a][b][c][d] = Decimal(number[4])
 
     Q = make_hamiltonian( n_so, quantum_numbers, nninteraction )
+    print("INFO: Hamiltonian:")
+    for k, v in Q.items():
+        print(k, ":", v)
 
     # add constraint for number of fermions conservation
     # λ( q1 + q2 + ... + qN - N )**2
     C = Constrain_NumberOfFermions( n_so, n_p )
     print("INFO: constraint for number of fermions conservation:")
-    print(C)
+    for k, v in C.items():
+        print(k, ":", v)
+
     λ = 1.
     for idx, v in C.items():
         #print("DEBUG: c= ", idx, v)
@@ -173,6 +175,10 @@ if __name__ == '__main__':
             Q[idx] = Q[idx] + λ*v
         else:
             Q[idx] = λ*v
+
+    print("INFO: Complete HUBO model:")
+    for k, v in Q.items():
+        print(k, ":", v)
 
     # Strength of the reduction constraint. 
     # Insufficient strength can result in the binary quadratic model
@@ -184,7 +190,7 @@ if __name__ == '__main__':
     print("INFO: simplified binary quadratic model:")
     print(bqm)
 
-    schedule = [(0.0, 1.0), (2.0, 0.7), (98.0, 0.7), (100.0, 1.0)]
+    schedule = [(0.0, 1.0), (2.0, 0.7), (18.0, 0.7), (20.0, 1.0)]
     print("INFO: reverse annealing schedule:")
     print(schedule)
     
@@ -223,6 +229,7 @@ if __name__ == '__main__':
 
     for initial_state in initial_states:
         counter = Counter()
+        energy = {}
         
         #print("DEBUG: initial state:", initial_state[1])
         s0 = {}
@@ -259,6 +266,7 @@ if __name__ == '__main__':
 
             # this also contains the state of ancilla qubits
             best_fit = list( results.first.sample.values() )
+            
             #print("DEBUG: best-fit:", best_fit)
             gs = dirac(best_fit)
 
@@ -267,15 +275,14 @@ if __name__ == '__main__':
             gs = dirac(best_fit_x)
 
             counter[gs] += 1
+            energy[gs] = results.first.energy
 
             #print("INFO: ground state (%i/%i):" % (itrial, max_evals) )
             #print(gs)
 
-        #x0 = [ a[1] for a in initial_state ]
-        #s0 = dirac( x0 )
         s0 = dirac( initial_state[1] )
         print("INFO: counters for initial state", s0)
         for state, c in counter.items():
-            print( state, ":", c)
+            print( state, ":", c, "E = %f"%energy[state])
         print("-------")
     
