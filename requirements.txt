@@ -1,0 +1,7 @@
+dimod
+dwave-system
+dwave-neal
+dwave_networkx
+numpy
+pyqubo
+minorminer
