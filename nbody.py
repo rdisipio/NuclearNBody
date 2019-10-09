@@ -21,6 +21,12 @@ from dwave_tools import get_embedding_with_short_chain, get_energy, anneal_sched
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+def nCr( n, r ):
+    f = np.math.factorial
+    return int( f(n) // f(r) / f(n-r) )
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 def Constrain_NumberOfFermions( n_so, n_p ):
     # see https://buildmedia.readthedocs.org/media/pdf/pyqubo/stable/pyqubo.pdf
     qubits = [ pyqubo.Binary(str(i)) for i in range(n_so) ]
@@ -203,6 +209,9 @@ if __name__ == '__main__':
     for s in initial_states:
         print( "%-3i ="%s[0], dirac(s[1]))
 
+    n_solutions = nCr( n_so, n_p )
+    print("INFO: picking up the first %i solutions, ordered by decreasing energy." % n_solutions )
+
     for initial_state in initial_states:
         counter = Counter()
         energy = {}
@@ -232,17 +241,34 @@ if __name__ == '__main__':
             #this_energy = this_result.energy
             #this_q = np.array(list(this_result.sample.values()))
 
-            print("Results:")
-            print(results)
+            #print("Results:")
+            #print(results)
+
+            best_fit = []
+            i = 0
+            for data in results.data(fields=['sample', 'energy'],sorted_by='energy'):
+                if len(best_fit) == n_solutions: 
+                    break
+
+                #print(i, data[0])
+                sample = [ data[0][str(i)] for i in np.arange(n_so) ]
+
+                best_fit.append( sample ) #results[i].sample.values() )
+
+                gs = dirac(sample)
+                counter[gs] += 1
+                energy[gs] = data[1]
+
+                #print(gs, sample, energy[gs], len(best_fit))
 
             # this also contains the state of ancilla qubits
-            best_fit = list( results.first.sample.values() )
+            #best_fit = list( results.first.sample.values() )
             
             #print("DEBUG: best-fit:", best_fit)
-            gs = dirac(best_fit)
+            #gs = dirac(best_fit)
 
-            counter[gs] += 1
-            energy[gs] = results.first.energy
+            #counter[gs] += 1
+            #energy[gs] = results.first.energy
 
             #print("INFO: ground state (%i/%i):" % (itrial, max_evals) )
             #print(gs)
