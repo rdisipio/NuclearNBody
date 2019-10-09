@@ -131,12 +131,14 @@ if __name__ == '__main__':
     parser.add_argument( '-f', '--n_fermions', default=2 )
     parser.add_argument( '-r', '--num_reads', default=1000 )
     parser.add_argument( '-m', '--max_evals', default=1 )
+    parser.add_argument( '-b', '--backend', default='exact' )
     args = parser.parse_args()
 
     n_so = int( args.n_spin_orbitals )
     n_ferm  = int( args.n_fermions )
     num_reads = int( args.num_reads )
     max_evals = int( args.max_evals )
+    backend = args.backend
 
     # see:
     # https://github.com/ManyBodyPhysics/LectureNotesPhysics/blob/master/Programs/Chapter8-programs/python/hfnuclei.py
@@ -184,7 +186,7 @@ if __name__ == '__main__':
     for k, v in C_ij.items():
         print(k, ":", v)
 
-    λ = 100.
+    λ = 1000.
     for idx, v in C_ij.items():
         #print("DEBUG: c= ", idx, v)
         if idx in Q:
@@ -240,14 +242,16 @@ if __name__ == '__main__':
                 **reverse_anneal_params,
             }
 
-            # CPU:
-            # simulated annealing (neal):
-            #results = neal_sampler.sample_hubo(Q, **solver_parameters).aggregate()
-            # exact solver:
-            results = exact_sampler.sample_hubo( Q ).aggregate()
-
-            # QPU:
-            #results = qpu_sampler.sample_hubo(Q, **solver_parameters ).aggregate()
+            results = None
+            if backend in [ 'exact' ]:
+                print("INFO: running exact solver")
+                results = exact_sampler.sample_hubo( Q ).aggregate()
+            elif backend in [ 'neal' ]:
+                print("INFO: running simulated annealing (neal)")
+                results = neal_sampler.sample_hubo(Q, **solver_parameters).aggregate()
+            elif backend in [ 'qpu' ]:
+                print("INFO: running real QPU")
+                results = qpu_sampler.sample_hubo(Q, **solver_parameters ).aggregate()
 
             print("DEBUG: Results:")
             print(results)
