@@ -15,7 +15,7 @@ minorminer
 To run test example:
 
 ```
-./nbody.py -s n_spin_orbitals -p n_particles -r num_reads -m max_evals
+./nbody.py -s n_spin_orbitals -f n_fermions -r num_reads -m max_evals
 ```
 
 Change ```h``` and ```V``` in ```make_hamiltonian()``` according to the problem.

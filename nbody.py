@@ -28,10 +28,10 @@ def nCr( n, r ):
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-def Constrain_NumberOfFermions( n_so, n_p ):
+def Constrain_NumberOfFermions( n_so, n_ferm ):
     # see https://buildmedia.readthedocs.org/media/pdf/pyqubo/stable/pyqubo.pdf
     qubits = [ pyqubo.Binary(str(i)) for i in range(n_so) ]
-    H = sum(qubits) - n_p
+    H = sum(qubits) - n_ferm
     H = H*H
     model = H.compile()
     qubo, offset = model.to_qubo()
@@ -128,13 +128,13 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser("N-body with quantum annealing")
     parser.add_argument( '-s', '--n_spin_orbitals', default=3 )
-    parser.add_argument( '-p', '--n_particles', default=2 )
+    parser.add_argument( '-f', '--n_fermions', default=2 )
     parser.add_argument( '-r', '--num_reads', default=1000 )
     parser.add_argument( '-m', '--max_evals', default=1 )
     args = parser.parse_args()
 
     n_so = int( args.n_spin_orbitals )
-    n_p  = int( args.n_particles )
+    n_ferm  = int( args.n_fermions )
     num_reads = int( args.num_reads )
     max_evals = int( args.max_evals )
 
@@ -179,7 +179,7 @@ if __name__ == '__main__':
 
     # add constraint for number of fermions conservation
     # λ( q1 + q2 + ... + qN - N )**2
-    C_ij = Constrain_NumberOfFermions( n_so, n_p )
+    C_ij = Constrain_NumberOfFermions( n_so, n_ferm )
     print("INFO: constraint for number of fermions conservation:")
     for k, v in C_ij.items():
         print(k, ":", v)
@@ -210,15 +210,15 @@ if __name__ == '__main__':
     exact_sampler = dimod.HigherOrderComposite( dimod.ExactSolver() )
     qpu_sampler   = dimod.HigherOrderComposite( EmbeddingComposite(DWaveSampler()) )
 
-    #initial_states = set( itertools.permutations( [1]*n_p + [0]*(n_so-n_p), n_so )  )
+    #initial_states = set( itertools.permutations( [1]*n_ferm + [0]*(n_so-n_ferm), n_so )  )
     #initial_states = list( zip( np.arange(len(initial_states)), initial_states) )
-    initial_states = [ (0, [1]*n_p + [0]*(n_so-n_p) )]
-    print("INFO: possible initial states with %i particles in %i spin orbitals:" % (n_p, n_so) )
+    initial_states = [ (0, [1]*n_ferm + [0]*(n_so-n_ferm) )]
+    print("INFO: possible initial states with %i particles in %i spin orbitals:" % (n_ferm, n_so) )
     for s in initial_states:
         print( "%-3i ="%s[0], dirac(s[1]))
 
-    n_solutions = nCr( n_so, n_p )
-    print("INFO: picking up the first (%i choose %i) = %i solutions, ordered by decreasing energy." % (n_so, n_p, n_solutions) )
+    n_solutions = nCr( n_so, n_ferm )
+    print("INFO: picking up the first (%i choose %i) = %i solutions, ordered by decreasing energy." % (n_so, n_ferm, n_solutions) )
 
     for initial_state in initial_states:
         counter = Counter()
