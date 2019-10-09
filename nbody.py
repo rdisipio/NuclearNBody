@@ -5,6 +5,7 @@ import itertools
 import numpy as np
 from decimal import Decimal
 from collections import Counter
+import argparse
 
 import dimod
 import dwave_networkx as dnx
@@ -125,10 +126,17 @@ def dirac(x):
 
 if __name__ == '__main__':
 
-    n_so = 4 # number of spin orbitals
-    n_p = 2  # number of particles actually present
-    num_reads = 1000
-    max_evals = 1
+    parser = argparse.ArgumentParser("N-body with quantum annealing")
+    parser.add_argument( '-s', '--n_spin_orbitals', default=3 )
+    parser.add_argument( '-p', '--n_particles', default=2 )
+    parser.add_argument( '-r', '--num_reads', default=1000 )
+    parser.add_argument( '-m', '--max_evals', default=1 )
+    args = parser.parse_args()
+
+    n_so = int( args.n_spin_orbitals )
+    n_p  = int( args.n_particles )
+    num_reads = int( args.num_reads )
+    max_evals = int( args.max_evals )
 
     # see:
     # https://github.com/ManyBodyPhysics/LectureNotesPhysics/blob/master/Programs/Chapter8-programs/python/hfnuclei.py
@@ -198,9 +206,9 @@ if __name__ == '__main__':
     print("INFO: reverse annealing schedule:")
     print(schedule)
     
-    neal_sampler = dimod.HigherOrderComposite( neal.SimulatedAnnealingSampler() )
-    exact_sampler = dimod.HigherOrderComposite(dimod.ExactSolver())
-    qpu_sampler = dimod.HigherOrderComposite(EmbeddingComposite(DWaveSampler()))
+    neal_sampler  = dimod.HigherOrderComposite( neal.SimulatedAnnealingSampler() )
+    exact_sampler = dimod.HigherOrderComposite( dimod.ExactSolver() )
+    qpu_sampler   = dimod.HigherOrderComposite( EmbeddingComposite(DWaveSampler()) )
 
     #initial_states = set( itertools.permutations( [1]*n_p + [0]*(n_so-n_p), n_so )  )
     #initial_states = list( zip( np.arange(len(initial_states)), initial_states) )
@@ -210,7 +218,7 @@ if __name__ == '__main__':
         print( "%-3i ="%s[0], dirac(s[1]))
 
     n_solutions = nCr( n_so, n_p )
-    print("INFO: picking up the first %i solutions, ordered by decreasing energy." % n_solutions )
+    print("INFO: picking up the first (%i choose %i) = %i solutions, ordered by decreasing energy." % (n_so, n_p, n_solutions) )
 
     for initial_state in initial_states:
         counter = Counter()
@@ -218,8 +226,12 @@ if __name__ == '__main__':
 
         for itrial in range(max_evals):
 
+            s0 = {}
+            for i in np.arange(n_so):
+                s0[str(i)] = initial_state[1][i]
+
             reverse_anneal_params = dict(anneal_schedule=schedule,
-                                 initial_state=initial_state[1],
+                                 initial_state=s0,
                                  reinitialize_state=True)
 
             solver_parameters = {
@@ -230,19 +242,15 @@ if __name__ == '__main__':
 
             # CPU:
             # simulated annealing (neal):
-            #results = neal_sampler.sample(bqm, **solver_parameters).aggregate()
+            #results = neal_sampler.sample_hubo(Q, **solver_parameters).aggregate()
             # exact solver:
-            #results = exact_sampler.sample(bqm).aggregate()
             results = exact_sampler.sample_hubo( Q ).aggregate()
 
             # QPU:
-            #results = qpu_sampler.sample_hubo(Q, **solver_parameters )
-            
-            #this_energy = this_result.energy
-            #this_q = np.array(list(this_result.sample.values()))
+            #results = qpu_sampler.sample_hubo(Q, **solver_parameters ).aggregate()
 
-            #print("Results:")
-            #print(results)
+            print("DEBUG: Results:")
+            print(results)
 
             best_fit = []
             i = 0
@@ -250,28 +258,13 @@ if __name__ == '__main__':
                 if len(best_fit) == n_solutions: 
                     break
 
-                #print(i, data[0])
                 sample = [ data[0][str(i)] for i in np.arange(n_so) ]
 
-                best_fit.append( sample ) #results[i].sample.values() )
+                best_fit.append( sample )
 
                 gs = dirac(sample)
                 counter[gs] += 1
                 energy[gs] = data[1]
-
-                #print(gs, sample, energy[gs], len(best_fit))
-
-            # this also contains the state of ancilla qubits
-            #best_fit = list( results.first.sample.values() )
-            
-            #print("DEBUG: best-fit:", best_fit)
-            #gs = dirac(best_fit)
-
-            #counter[gs] += 1
-            #energy[gs] = results.first.energy
-
-            #print("INFO: ground state (%i/%i):" % (itrial, max_evals) )
-            #print(gs)
 
         s0 = dirac( initial_state[1] )
         print("INFO: counters for initial state", s0)
