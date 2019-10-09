@@ -24,7 +24,7 @@ from dwave_tools import get_embedding_with_short_chain, get_energy, anneal_sched
 
 def nCr( n, r ):
     f = np.math.factorial
-    return int( f(n) // f(r) / f(n-r) )
+    return f(n) // (f(r) * f(n-r) )
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
