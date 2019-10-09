@@ -2,15 +2,21 @@
 Nuclear N-body calculation using DWave quantum annealer.
 
 Requires: 
-numpy
+```
 dimod
-
+dwave-system
+dwave-neal
+dwave_networkx
+numpy
+pyqubo
+minorminer
+```
 
 To run test example:
 
 ```
-./nbody.py 
+./nbody.py -s n_spin_orbitals -p n_particles -r num_reads -m max_evals
 ```
 
-Change T and V in ```make_hamiltonian``` according to the problem.
+Change ```h``` and ```V``` in ```make_hamiltonian()``` according to the problem.
 
