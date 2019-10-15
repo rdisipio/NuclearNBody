@@ -7,6 +7,10 @@ import pyqubo
 import dimod
 import networkx
 from helper_functions import *
+from datetime import datetime
+import dwave_networkx as dnx
+import matplotlib.pyplot as plt
+startTime = datetime.now()
 
 ####################################    
 ####################################
@@ -48,7 +52,8 @@ def First_term(*args):
     if transformed_state == False:
         return False
     else:
-        print("Final transformed states are:%s" % transformed_state)
+        print("Final transformed states are:%s with transformation %s" 
+              % (transformed_state, (i, j)))
         return True  
     
 ####################################
@@ -67,13 +72,45 @@ var_list = init_orbital_list(n_so) # List of qubits
 
 csp = dwavebinarycsp.ConstraintSatisfactionProblem('BINARY')
 csp.add_constraint(First_term, var_list)
-bqm = dwavebinarycsp.stitch(csp, max_graph_size=20) # Change max_graph_size > 2*n_so
+bqm = dwavebinarycsp.stitch(csp, max_graph_size=20, min_classical_gap = 2.0) # Change max_graph_size > 2*n_so
 
-
+print(bqm)
 m = bqm.to_networkx_graph() # Convert BQM to a graph, to see if patterns exist 
-networkx.draw(m) # Draw graph of BQM
-print("DONE")
 
+edge_color = []
+edge_list = []
+node_color = []
+for q in m.node:
+    if m._node[q]['bias'] > 0:
+        node_color += ['y']
+        
+    if m._node[q]['bias'] == 0:
+        node_color += ['k']
+        
+    if m._node[q]['bias'] < 0:
+        node_color += ['r']
+
+for q in m.edges:
+    edge_list += [q]
+    if m[q[0]][q[1]]['bias'] > 0:
+        edge_color += ['y']
+        
+    if m[q[0]][q[1]]['bias'] == 0:
+        edge_color += ['k']
+        
+    if m[q[0]][q[1]]['bias'] < 0:
+        edge_color += ['r']
+plt.figure()
+pos = networkx.spring_layout(m)
+networkx.draw_networkx_nodes(m, pos, node_color = node_color)
+networkx.draw_networkx_edges(m, pos, edgelist = edge_list,
+                             edge_color = edge_color)
+networkx.draw_networkx_labels(m, pos, font_color = 'w')
+plt.text(1.15, 0.8, " Black: = 0 \n Red: < 0 \n Yellow: > 0")
+#networkx.draw_networkx_edge_labels(m, pos)
+
+print("DONE")
+#print(datetime.now() - startTime)
 
 #Solvers
 
