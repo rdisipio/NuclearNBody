@@ -23,6 +23,16 @@ def init_orbital_list(n_so): # n_so is # of spin orbitals
         idx += 1
     return so_list
 
+def init_orbital_list_2nd(n_so): # n_so is # of spin orbitals
+    idx = 0
+    so_list = []
+    idx2str = { 0: 'i', 1: 'j', 2: 'k', 3: 'l'}
+    while idx != 4:
+        for i in range(n_so):
+            so_list += [idx2str[idx] + str(i+1)]
+        idx += 1
+    return so_list
+
 ####################################
 # Function to represent the anhilation operator
 # Fed a state, if input is == False, returns False,
@@ -43,6 +53,7 @@ def Create(state_input, create):
     if state_input == False: # since we anhilate first then create (a†a|Ψ>), if a|Ψ> = 0 = False then 
                              # we simply say that a†0 = 0 -> return False
         return False
+    
     clone_input = state_input.copy() # copy input state so we can change it and output it
     if clone_input[create - 1] == 1: # a†|1> = 0
         return False
