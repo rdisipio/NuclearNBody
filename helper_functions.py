@@ -60,3 +60,33 @@ def Create(state_input, create):
     else:
         clone_input[create - 1] = 1 # a†|0> = |1>
         return clone_input # clone_input = a†|Ψ_i>
+
+def N_single_electron_add_zero_make_BQM(ncopies):
+    var_list = []
+    lin_out = {}
+    quad_out = {}
+    for ncopy in range(ncopies):
+        ncopy += 1
+        for idx in range(2 * ncopy - 1, 2 * ncopy + 1):
+            name = 'i' + str(idx)
+            var_list += [name]
+            lin_out.update({name : 0})
+            
+        for idx in range(2 * ncopy - 1, 2 * ncopy + 1):
+            name = 'j' + str(idx)
+            var_list += [name]
+            lin_out.update({name : 0})
+        
+    for key in var_list:
+        i = 0
+        while i <= 4 * ncopies - 4:
+            quad_out.update({ (var_list[i], var_list[i + 1]) : 4.})
+            quad_out.update({ (var_list[i], var_list[i + 2]) : 0.})
+            quad_out.update({ (var_list[i], var_list[i + 3]) : -2.})
+            quad_out.update({ (var_list[i + 1], var_list[i + 2]) : 0.})
+            quad_out.update({ (var_list[i + 1], var_list[i + 3]) : -2.})
+            quad_out.update({ (var_list[i + 2], var_list[i + 3]) : 4.})
+            
+            i += 4
+            
+    return var_list, lin_out, quad_out
